@@ -10,4 +10,9 @@ QAOA for:
  * Dominating set problem (DSP)
  * Traveling salesman problem (TSP)
 
+To run the benchmark simply download the repo and edit the main file with the system you want to benchmark. Make sure to have your IBMQ credentials set up.
+The results are saved as a JSON file in the 'logs' directory.
+
+
+
 Further information about QPACK can be found on [Arxiv.org](https://arxiv.org/abs/2103.17193).
