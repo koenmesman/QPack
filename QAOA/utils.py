@@ -37,6 +37,9 @@ def plot_json(q_func, backend_tag):
         ax2.plot(size, score, '.')
         ax3.plot(size, acc, '.')
         ax4.plot(size, iterat, '.')
+        
+        #fig2, ax = plt.plot()
+        #ax.plot()
     
 def get_times(job, wall):
     

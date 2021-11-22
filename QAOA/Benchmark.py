@@ -7,6 +7,8 @@ import traceback
 from utils import get_times, merge_times
 global BENCHMARK_TIMES
 import exact_solver as exact
+import os
+import stat
 
 #Workflow qaoa instance:
 #   define problem size (qubits), optionally adjust for TSP (though strangeworks does not support >9 qubits)
@@ -49,8 +51,10 @@ class Benchmark:
         return self._qbits.get(self.q_func)
     
     def __update_data(self):
+        work_dir = os.path.dirname(os.path.realpath(__file__))
+        path = work_dir + '/logs/log_'+ self.q_func + "_" + self.backend_tag + '.json'
         try:
-            with open('./data/log_'+ self.q_func + "_" + self.backend_tag + '.json','r+') as file:
+            with open(path,'r+') as file:
                 file_data = json.load(file)
                 
                 old_data = file_data["data"] 
@@ -60,7 +64,7 @@ class Benchmark:
                 file.seek(0)
                 json.dump(file_data, file, indent = 4)
         except:
-            with open('./data/log_'+ self.q_func + "_" + self.backend_tag + '.json', 'w') as file:
+            with open(path, 'w') as file:
                 file_data = {"qfunc" :self.q_func, "backend_tag":self.backend_tag, "data":[self.stream]}
                 file.seek(0)
                 json.dump(file_data, file, indent = 4)
