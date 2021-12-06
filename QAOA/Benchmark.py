@@ -4,11 +4,12 @@ import time
 import json
 import datetime
 import traceback
-from utils import get_times, merge_times
+from utils import get_times, merge_times, format_runtime
 global BENCHMARK_TIMES
 import exact_solver as exact
 import os
 import stat
+import runtime as runtime_lib
 
 #Workflow qaoa instance:
 #   define problem size (qubits), optionally adjust for TSP (though strangeworks does not support >9 qubits)
@@ -30,10 +31,13 @@ class Benchmark:
         self.q_func = func
         self.max_size = []
         self.qvm = ""
+        self.provider = ""
         self.lim = 10
         self.backend = ""
         self.max_iter = 1000
         self.score=0
+        self.shots=100
+        self.runtime = False
         date = datetime.date.today()
         time = datetime.datetime.now()
         self.datetime = (str(date)+"_" + str(time.hour)+"-"+str(time.minute))
@@ -52,7 +56,10 @@ class Benchmark:
     
     def __update_data(self):
         work_dir = os.path.dirname(os.path.realpath(__file__))
-        path = work_dir + '/logs/log_'+ self.q_func + "_" + self.backend_tag + '.json'
+        if self.runtime:
+            path = work_dir + "/logs/log_{}_{}_runtime.json".format(self.q_func, self.backend_tag)
+        else:
+            path = work_dir + "/logs/log_{}_{}.json".format(self.q_func, self.backend_tag)
         try:
             with open(path,'r+') as file:
                 file_data = json.load(file)
@@ -83,8 +90,9 @@ class Benchmark:
         # set max number of iterations for optimizer
         self.max_iter = max_iter
 
-    def set_backend(self, backend, tag):
-        self.backend = backend
+    def set_backend(self, provider, tag):
+        self.backend = provider.get_backend(tag)
+        self.provider = provider
         self.backend_tag = tag
     
         
@@ -100,7 +108,8 @@ class Benchmark:
         optimal = xsolver(size)
         return self.score/(optimal)
 
-    def run(self):
+    def run(self, runtime=False):
+        self.runtime = runtime
         self._problem_size = 5
         out = []
         keys = ["size", "shots", "layers", "iter", "eval", "score", "acc", "times", "datetime"]
@@ -112,25 +121,36 @@ class Benchmark:
                 self.graph = gg.regular_graph(self._problem_size)
                 self.results = 0
                 print('start', self.q_func, self._problem_size)
-                self._start = time.time()
-                #self._results = opt.nm(self.init_param, self.graph, self.p, self.q_func)
-                # TODO: enable max_iter
-                self._results = opt.shgo_fun(self.init_param, self.graph, self.p, self.q_func, self.backend)
-                self._time = time.time() - self._start
+                
+                if not runtime:
+                    self._start = time.time()
+                    #self._results = opt.nm(self.init_param, self.graph, self.p, self.q_func)
+                    # TODO: enable max_iter
+                    self._results = opt.shgo_fun(self.init_param, self.graph, self.p, self.q_func, self.backend)
+                    
+                    self._time = time.time() - self._start
+                    self._time_dict = BENCHMARK_TIMES
+                else:
+                    self._start = time.time()
+                    # enable options
+                    self._results = runtime_lib.runtime_mcp(self.provider, self.backend, self.max_iter, self.shots)
+                    self._time_dict = self._results[1]
+                    self._time = time.time()
 
 
                 # TODO: specify score
                 self.score = self._results
-                self._time_dict = BENCHMARK_TIMES
                 self._time_dict['WALLTIME'] = self._time
                 self.stream["size"] = self._problem_size
-                self.stream["iter"] = self._results[3]
-                self.stream["eval"] = self._results[2]
                 self.stream["score"] = self._results[0]
+                self.stream["eval"] = self._results[2]
+                self.stream["iter"] = self._results[3]
                 self.score = self._results[0]
                 self.stream["acc"] = self.accuracy(self._problem_size)
+                self._formatted_times = format_runtime(self._time_dict)
                 
-                self.stream["times"] = self._time_dict
+                self.stream["times"] = self._formatted_times
+                
                 self.__update_data()
                 
                 self._problem_size += 1
